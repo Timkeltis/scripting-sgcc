@@ -1,0 +1,27 @@
+{
+  "contributors": [
+    {
+      "email": "SylvanRoe@gmail.com",
+      "homepage": "https://github.com/SylvanRoe/Scripting",
+      "name": "SylvanRoe"
+    }
+  ],
+  "description": "网上国网本机直连中号小组件。使用 Android App 3.2.3 协议在 Scripting 本地登录查询。",
+  "author": {
+    "homepage": "https://github.com/Timkeltis/scripting-sgcc",
+    "name": "Timkeltis",
+    "email": null
+  },
+  "localizedNames": { "zh": "网上国网" },
+  "remoteResource": null,
+  "color": "rgba(0, 112, 107, 1)",
+  "icon": "bolt.circle",
+  "entry": "index.tsx",
+  "version": "2.0.0",
+  "permissions": null,
+  "intentInputTypes": [],
+  "name": "SGCC",
+  "iconImage": "https://raw.githubusercontent.com/Honye/scriptable-scripts/master/static/sgcc.png",
+  "localizedDescriptions": { "zh": "网上国网本机直连中号小组件" },
+  "runInApp": true
+}
