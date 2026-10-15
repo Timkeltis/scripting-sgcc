@@ -1,4 +1,4 @@
-/** Scripting 本机直连网上国网数据层。 */
+/** Scripting 本机直连网上国网；不依赖 NAS、BoxJS 或重写。 */
 import { SgApp, queryAccount } from './direct-core'
 import { directContext, secureRandomBytes } from './direct-runtime'
 import { loadCredentials } from './credentials'
