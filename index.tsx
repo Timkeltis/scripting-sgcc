@@ -28,6 +28,7 @@ import {
   TextField,
   ColorPicker,
   HStack,
+  VStack,
   Spacer,
   Widget,
   useState,
@@ -37,7 +38,7 @@ import { loadSettings, saveSettings, resetSettings } from './lib/store'
 import { listAccountsWithSource, sendLoginSms, verifyLoginSms } from './lib/api'
 import { loadCredentials, saveCredentials } from './lib/credentials'
 import { clearCache } from './lib/cache'
-import { DEFAULT_SETTINGS, type SGCCSettings, type MetricKey, type RowDisplayMode } from './lib/types'
+import { DEFAULT_SETTINGS, type SGCCSettings, type MetricKey, type RowDisplayMode, type SmallSlotKey } from './lib/types'
 
 type Account = { index: number; consNo: string; consName: string }
 
@@ -65,6 +66,15 @@ const METRIC_OPTIONS = [
   { tag: 7, value: 'dayChart' as const, label: '日用电图表' },
   { tag: 8, value: 'none' as const, label: '不显示' },
 ]
+
+const SMALL_SLOT_OPTIONS: Array<{ tag: number; value: SmallSlotKey; label: string }> = [
+  ...METRIC_OPTIONS,
+  { tag: 9, value: 'consName', label: '户名' },
+  { tag: 10, value: 'step', label: '阶梯进度' },
+  { tag: 11, value: 'balance', label: '余额 / 上期电费' },
+]
+
+const smallSlotTag = (key: SmallSlotKey) => SMALL_SLOT_OPTIONS.find(item => item.value === key)?.tag ?? 0
 
 const rowModeTag = (mode: RowDisplayMode) => ROW_MODES.find(r => r.value === mode)?.tag ?? 0
 const metricKeyTag = (key: MetricKey) => METRIC_OPTIONS.find(m => m.value === key)?.tag ?? 0
@@ -193,6 +203,7 @@ export default function SettingsView() {
       return { ...prev, accNames }
     })
   }
+
 
   // 显式保存并立即通知 WidgetKit 重载，避免必须等待系统下次调度
   const persist = () => {
@@ -337,6 +348,25 @@ export default function SettingsView() {
               value={settings.accNames[i] ?? ''}
               onChanged={v => patchAccName(i, v)}
             />
+          ))}
+        </Section>
+
+        <Section
+          header={<Text>小号组件</Text>}
+          footer={<Text font="caption">小号固定使用可配置样式三。四个位置都可选用当前中号已有模块：各项用电数据、日用电图表、户名、阶梯进度、余额或不显示。阶梯进度直接复用中号阶梯条与设置。</Text>}
+        >
+          {([
+            ['top', '顶部位置'],
+            ['upper', '第二位置'],
+            ['lower', '第三位置'],
+            ['bottom', '底部位置'],
+          ] as Array<[keyof SGCCSettings['smallSlots'], string]>).map(([key, title]) => (
+            <Picker key={key} title={title} value={smallSlotTag(settings.smallSlots[key])} onChanged={(v: number) => {
+              const item = SMALL_SLOT_OPTIONS.find(option => option.tag === v)
+              if (item) setSettings(prev => ({ ...prev, smallSlots: { ...prev.smallSlots, [key]: item.value } }))
+            }} pickerStyle="menu">
+              {SMALL_SLOT_OPTIONS.map(option => <Text key={option.tag} tag={option.tag}>{option.label}</Text>)}
+            </Picker>
           ))}
         </Section>
 
