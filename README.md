@@ -1,10 +1,10 @@
 # SGCC
 
+> **来源与用途说明**：本仓库为个人维护的公开备份与自用项目，设计参考 [githubdulong/Script 的 SGCC.js](https://github.com/githubdulong/Script/blob/master/Scriptable/SGCC.js)，协议实现参考 [stevenjoezhang/hass-state-grid](https://github.com/stevenjoezhang/hass-state-grid)。请尊重原作者权利；本仓库不是原作者或国家电网的官方发布渠道。
+
 基于 **Scripting** 的 iOS 网上国网小组件，在本机完成登录与查询，展示电费余额、用电记录和年度阶梯电量。
 
-设计与功能参考脑瓜的 [Scriptable 网上国网小组件](https://github.com/githubdulong/Script/blob/master/Scriptable/SGCC.js)，协议实现源自 [hass-state-grid](https://github.com/stevenjoezhang/hass-state-grid)。本项目用于个人学习与自用，非国家电网官方产品。
-
-> 当前为待实测版本：已通过类型检查及离线测试，真实账号登录、短信验证和地区兼容性尚待验证。
+> 真实账号登录、短信验证及地区兼容性需自行实测。
 
 ## 功能特性
 
@@ -15,7 +15,7 @@
 - 凭据与会话保存在本机 Keychain，关闭 iCloud 同步。
 - 缓存优先，更新失败时保留上次成功数据。
 
-目前支持 **中号桌面小组件（`systemMedium`）**。Android 3.2.3 为参考协议版本，不需要 Android 设备。
+目前支持 **小号（`systemSmall`）与中号（`systemMedium`）桌面小组件**。Android 3.2.3 为参考协议版本，不需要 Android 设备。
 
 ## 快速开始
 
@@ -35,7 +35,7 @@
 
 ### 添加小组件
 
-在 iOS 桌面添加 Scripting 中号小组件，选择 **SGCC**。通过小组件参数指定显示内容：
+在 iOS 桌面添加 Scripting 小号或中号组件，选择 **SGCC**。通过小组件参数指定显示账户：
 
 | 参数 | 说明 |
 | --- | --- |
