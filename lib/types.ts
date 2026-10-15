@@ -145,6 +145,17 @@ export type MetricKey =
   | 'dayChart'
   | 'none'
 
+/** 小号组件样式 4 的可选指标（额外支持阶梯与户名） */
+export type SmallSlotKey = MetricKey | 'consName' | 'step' | 'balance'
+
+/** 四位置可配置的小号样式三。 */
+export interface SmallWidgetSlots {
+  top: SmallSlotKey
+  upper: SmallSlotKey
+  lower: SmallSlotKey
+  bottom: SmallSlotKey
+}
+
 /** 每行显示模式：组合一/二/三 或 阶梯电量 */
 export type RowDisplayMode = 'group1' | 'group2' | 'group3' | 'step'
 
@@ -204,6 +215,9 @@ export interface SGCCSettings {
   step3: number
   /** 自定义户名，按账户下标存放（index -> 户名）。桌面小组件参数可复用它们区分多户 */
   accNames: string[]
+
+  /** 小号四个位置的模块；仅影响 systemSmall */
+  smallSlots: SmallWidgetSlots
 }
 
 export const DEFAULT_SETTINGS: SGCCSettings = {
@@ -233,4 +247,10 @@ export const DEFAULT_SETTINGS: SGCCSettings = {
   step2: 0,
   step3: 0,
   accNames: [],
+  smallSlots: {
+    top: 'consName',
+    upper: 'step',
+    lower: 'currentMonthEle',
+    bottom: 'balance',
+  },
 }
