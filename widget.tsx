@@ -11,7 +11,7 @@
  * version: 2.3.3
  * update: 2026/08/11
  * 原创UI，修改套用请注明来源
- * 当前版本由 Scripting 本机直连网上国网。
+ * 当前版本由 Scripting 本机直连网上国网，无需 NAS、BoxJS 或抓包重写。
  *
  * 附：原脚本头部（Scriptable 专用，Scripting 中不生效，仅留档）——
  *   // Variables used by Scriptable.
@@ -52,7 +52,7 @@ import {
   shortTime,
   resolveAccountIndex,
 } from './lib/calc'
-import type { BillViewModel, SGCCSettings, MetricKey, RowDisplayMode } from './lib/types'
+import type { BillViewModel, SGCCSettings, MetricKey, RowDisplayMode, SmallSlotKey } from './lib/types'
 
 const settings = loadSettings()
 
@@ -80,8 +80,11 @@ const RIGHT_PADDING = 30
 const RIGHT_INNER = WIDGET_WIDTH - PANEL_WIDTH - RIGHT_PADDING
 /** 阶梯条宽度 = 右面板内可用宽度 */
 const BAR_WIDTH = RIGHT_INNER
+/** 小号内容宽度：配合 16pt 左右内边距，避免阶梯条贴边。 */
+/** 小号完整画布：背景必须覆盖组件尺寸，不能由内容高度决定。 */
+const SMALL_CANVAS = Widget.displaySize ?? { width: 155, height: 155 }
 
-/** 把 #rrggbb 颜色向白色混合 amount（0~1），返回更浅的 6 位 hex */
+const SMALL_INNER_WIDTH = Math.max(96, SMALL_CANVAS.width - 32)
 function lightenHex(hex: string, amount: number): string {
   if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex
   const c = (i: number) => parseInt(hex.slice(i + 1, i + 3), 16)
@@ -228,7 +231,7 @@ function DayChart({ data }: { data: BillViewModel['dayElePq'] }) {
  * - 圆形滑块定位当前用电位置
  * - 上方文字标注 "阶梯电量" + "第N阶梯·xx%"
  */
-function StepRow({ step, yearUsage, barStyle }: { step: BillViewModel['step']; yearUsage: number; barStyle: '三色' | '纯色' }) {
+function StepRow({ step, yearUsage, barStyle, width = BAR_WIDTH, compact = false }: { step: BillViewModel['step']; yearUsage: number; barStyle: '三色' | '纯色'; width?: number; compact?: boolean }) {
   const { step2, step3, isOverLimit, maxScale } = step
 
   const BAR_HEIGHT = 8
@@ -240,23 +243,23 @@ function StepRow({ step, yearUsage, barStyle }: { step: BillViewModel['step']; y
   const scale = maxScale
 
   // 各段宽度
-  const seg1W = (step2 / scale) * BAR_WIDTH   // 第一档段宽
-  const seg2W = ((step3 - step2) / scale) * BAR_WIDTH  // 第二档段宽
-  const seg3W = ((step3 - 0) / scale) * BAR_WIDTH - seg1W - seg2W // 第三档段宽（不超出时到 BAR_WIDTH）
-  const exceedW = isOverLimit ? ((step.usage - step3) / scale) * BAR_WIDTH : 0 // 超出段宽
+  const seg1W = (step2 / scale) * width   // 第一档段宽
+  const seg2W = ((step3 - step2) / scale) * width  // 第二档段宽
+  const seg3W = ((step3 - 0) / scale) * width - seg1W - seg2W // 第三档段宽（不超出时到 width）
+  const exceedW = isOverLimit ? ((step.usage - step3) / scale) * width : 0 // 超出段宽
 
   // 已用比例
   const usageRatio = Math.max(0, Math.min(step.usage / scale, 1))
-  const usedWidth = Math.max(usageRatio * BAR_WIDTH, 2)
+  const usedWidth = Math.max(usageRatio * width, 2)
 
   // 刻度竖线 X 位置
-  const tick2X = (step2 / scale) * BAR_WIDTH
-  const tick3X = (step3 / scale) * BAR_WIDTH
+  const tick2X = (step2 / scale) * width
+  const tick3X = (step3 / scale) * width
 
   // 滑块 X
   const sliderX = Math.max(
     0,
-    Math.min(BAR_WIDTH - SLIDER_SIZE, usedWidth - SLIDER_SIZE / 2),
+    Math.min(width - SLIDER_SIZE, usedWidth - SLIDER_SIZE / 2),
   )
 
   const tierText = ['一', '二', '三'][step.level - 1]
@@ -264,41 +267,24 @@ function StepRow({ step, yearUsage, barStyle }: { step: BillViewModel['step']; y
 
   return (
     <VStack alignment="leading" spacing={2}>
-      {/* 上方文字标注：左=当前阶梯+百分比，右=剩余/超出度数 */}
-      <HStack alignment="firstTextBaseline">
+      {!compact && <HStack alignment="firstTextBaseline">
         {isOverLimit ? (
           <HStack alignment="firstTextBaseline" spacing={0}>
-            <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>
-              第三阶梯·
-            </Text>
-            <Text font={11} fontWeight="semibold" foregroundStyle={overColor}>
-              {`${step.exceedPercent.toFixed(1)}%`}
-            </Text>
+            <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>第三阶梯·</Text>
+            <Text font={11} fontWeight="semibold" foregroundStyle={overColor}>{`${step.exceedPercent.toFixed(1)}%`}</Text>
           </HStack>
         ) : (
-          <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>
-            {`第${tierText}阶梯·${step.percent.toFixed(2)}%`}
-          </Text>
+          <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>{`第${tierText}阶梯·${step.percent.toFixed(2)}%`}</Text>
         )}
         <Spacer />
         {isOverLimit ? (
           <HStack alignment="firstTextBaseline" spacing={2}>
-            <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>
-              超出
-            </Text>
-            <Text font={11} fontWeight="semibold" foregroundStyle={overColor}>
-              {step.exceed.toFixed(0)}
-            </Text>
-            <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>
-              度
-            </Text>
+            <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>超出</Text>
+            <Text font={11} fontWeight="semibold" foregroundStyle={overColor}>{step.exceed.toFixed(0)}</Text>
+            <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>度</Text>
           </HStack>
-        ) : (
-          <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>
-            {`剩余 ${step.remain.toFixed(0)} 度`}
-          </Text>
-        )}
-      </HStack>
+        ) : <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>{`剩余 ${step.remain.toFixed(0)} 度`}</Text>}
+      </HStack>}
 
       {/* 横向阶梯条 */}
       {barStyle === '纯色' ? (
@@ -306,7 +292,7 @@ function StepRow({ step, yearUsage, barStyle }: { step: BillViewModel['step']; y
         <ZStack alignment="leading">
           <Rectangle
             fill={lightenHex(chartHex, 0.55) as ShapeStyle}
-            frame={{ width: BAR_WIDTH, height: BAR_HEIGHT }}
+            frame={{ width: width, height: BAR_HEIGHT }}
             clipShape={{ type: 'rect', cornerRadius: BAR_HEIGHT / 2 }}
             offset={{ x: 0, y: 0 }}
           />
@@ -456,12 +442,12 @@ function StepRow({ step, yearUsage, barStyle }: { step: BillViewModel['step']; y
         </ZStack>
       )}
 
-      {/* 年度电量标注：位于滑块正下方，与滑块中心对齐，左右边缘限位防溢出 */}
+      {/* 小号仅在滑块下标注当前阶梯进度百分比；中号保留年度用电度数。 */}
       {(() => {
-        const LABEL_W = 45
+        const LABEL_W = compact ? 54 : 45
         const sliderCenter = sliderX + SLIDER_SIZE / 2
         let labelX = sliderCenter - LABEL_W / 2
-        labelX = Math.max(0, Math.min(labelX, BAR_WIDTH - LABEL_W))
+        labelX = Math.max(0, Math.min(labelX, width - LABEL_W))
         return (
           <HStack
             spacing={1}
@@ -470,10 +456,10 @@ function StepRow({ step, yearUsage, barStyle }: { step: BillViewModel['step']; y
             offset={{ x: labelX, y: -1 }}
           >
             <Text font={11} fontWeight="bold" foregroundStyle={labelColor}>
-              {yearUsage.toFixed(0)}
+              {(compact ? step.percent : yearUsage).toFixed(compact ? 1 : 0)}
             </Text>
             <Text font={11} fontWeight="regular" foregroundStyle={labelColor}>
-              度
+              {compact ? '%' : '度'}
             </Text>
           </HStack>
         )
@@ -739,6 +725,91 @@ function WidgetView({ vm, logoImage }: { vm: BillViewModel; logoImage?: UIImage 
   )
 }
 
+function SmallBalance({ vm, logoImage }: { vm: BillViewModel; logoImage?: UIImage | null }) {
+  const isBalance = !vm.isPostPaid || settings.showBalanceForPostPaid || vm.isOverdue
+  const title = vm.isOverdue ? '电费欠费' : isBalance ? '电费余额' : '上期电费'
+  const value = vm.isOverdue || isBalance ? Math.abs(vm.remainFee) : vm.monthFee
+  return <HStack alignment="top">
+    <VStack alignment="leading" spacing={0}>
+      <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>{title}</Text>
+      <HStack alignment="firstTextBaseline" spacing={2}><Text font={18} fontWeight="semibold" fontDesign="rounded" foregroundStyle={vm.isOverdue ? overdueColor : valueColor}>{value.toFixed(2)}</Text><Text font={9} foregroundStyle={labelColor}>元</Text></HStack>
+    </VStack>
+    <Spacer />
+    {logoImage ? <Image image={logoImage} resizable scaleToFit frame={{ width: 24, height: 24 }} /> : <Image systemName="bolt.circle.fill" resizable scaleToFit frame={{ width: 24, height: 24 }} foregroundStyle={accentColor} />}
+  </HStack>
+}
+
+/** 小号模块：复用中号现有的指标、柱图与阶梯条，避免维护两套计算规则。 */
+function SmallSlot({ slot, vm, logoImage }: { slot: SmallSlotKey; vm: BillViewModel; logoImage?: UIImage | null }) {
+  if (slot === 'none') return null
+  if (slot === 'consName') {
+    return <HStack spacing={5}><Image systemName="house.fill" resizable scaleToFit frame={{ width: 18, height: 18 }} foregroundStyle={accentColor} /><Text font={16} fontWeight="medium" foregroundStyle={accentColor} lineLimit={1}>{vm.consName || '国家电网'}</Text></HStack>
+  }
+  if (slot === 'balance') return <SmallBalance vm={vm} logoImage={logoImage} />
+  if (slot === 'step') return <StepRow step={vm.step} yearUsage={vm.step.usage} barStyle={settings.stepBarStyle} width={SMALL_INNER_WIDTH} compact />
+  return <MetricItem vm={vm} settings={settings} metricKey={slot} />
+}
+
+function SmallSlotSurface({ slot, vm, logoImage }: { slot: SmallSlotKey; vm: BillViewModel; logoImage?: UIImage | null }) {
+  if (slot === 'none') return null
+  return <SmallSlot slot={slot} vm={vm} logoImage={logoImage} />
+}
+
+function SmallFooterBalance({ vm }: { vm: BillViewModel }) {
+  const isBalance = !vm.isPostPaid || settings.showBalanceForPostPaid || vm.isOverdue
+  const title = vm.isOverdue ? '电费欠费' : isBalance ? '电费余额' : '上期电费'
+  const value = vm.isOverdue || isBalance ? Math.abs(vm.remainFee) : vm.monthFee
+  return <VStack alignment="leading" spacing={0}>
+    <Text font={11} fontWeight="semibold" foregroundStyle={labelColor}>{title}</Text>
+    <HStack alignment="firstTextBaseline" spacing={1}><Text font={16} fontWeight="semibold" fontDesign="rounded" foregroundStyle={vm.isOverdue ? overdueColor : valueColor} lineLimit={1}>{value.toFixed(2)}</Text><Text font={9} foregroundStyle={labelColor}>元</Text></HStack>
+  </VStack>
+}
+
+function SmallDayChart({ data, fullWidth = false }: { data: BillViewModel['dayElePq']; fullWidth?: boolean }) {
+  const bars = recentDays(data, fullWidth ? 10 : Math.min(settings.dayAmount, 6))
+  const max = Math.max(...bars.map(item => item.elePq), 0.01)
+  const chartHeight = fullWidth ? 26 : 30
+  const barWidth = fullWidth ? Math.min(9, Math.max(4, SMALL_INNER_WIDTH / Math.max(1, bars.length) * 0.52)) : 4
+  const gap = fullWidth && bars.length > 1
+    ? Math.max(3, (SMALL_INNER_WIDTH - barWidth * bars.length) / (bars.length - 1))
+    : 3
+  return <HStack alignment="bottom" spacing={gap} frame={fullWidth ? { width: SMALL_INNER_WIDTH, height: chartHeight, alignment: 'leading' } : { height: chartHeight }}>
+    {bars.map(item => <Rectangle key={item.label} fill={chartColor} frame={{ width: barWidth, height: Math.max(4, (fullWidth ? 21 : 25) * item.elePq / max) }} clipShape={{ type: 'rect', cornerRadius: 2 }} />)}
+  </HStack>
+}
+
+function SmallBottomSlot({ slot, vm, logoImage }: { slot: SmallSlotKey; vm: BillViewModel; logoImage?: UIImage | null }) {
+  if (slot === 'dayChart') return <SmallDayChart data={vm.dayElePq} fullWidth />
+  return <SmallSlotSurface slot={slot} vm={vm} logoImage={logoImage} />
+}
+
+/** 小号固定为可配置样式三：标题、全宽主模块、底部等宽双栏。 */
+function SmallWidgetView({ vm, logoImage }: { vm: BillViewModel; logoImage?: UIImage | null }) {
+  const { top, upper, lower, bottom } = settings.smallSlots
+  return <ZStack frame={{ width: SMALL_CANVAS.width, height: SMALL_CANVAS.height }} widgetBackground={bg}>
+    <VStack alignment="leading" spacing={8} padding={{ horizontal: 16, vertical: 13 }}>
+      <HStack alignment="center" spacing={6}>
+        <VStack alignment="leading"><SmallSlot slot={top} vm={vm} logoImage={logoImage} /></VStack>
+      </HStack>
+      <SmallSlotSurface slot={upper} vm={vm} logoImage={logoImage} />
+      <HStack alignment="center">
+        <VStack alignment="leading">
+          {lower === 'balance' ? <SmallFooterBalance vm={vm} /> : <SmallSlotSurface slot={lower} vm={vm} logoImage={logoImage} />}
+        </VStack>
+        <Spacer />
+        {logoImage ? <Image image={logoImage} resizable scaleToFit frame={{ width: 38, height: 38 }} offset={{ x: -4, y: 0 }} /> : <Image systemName="bolt.circle.fill" resizable scaleToFit frame={{ width: 38, height: 38 }} foregroundStyle={accentColor} offset={{ x: -8, y: 0}} />}
+      </HStack>
+      <SmallBottomSlot slot={bottom} vm={vm} logoImage={logoImage} />
+    </VStack>
+  </ZStack>
+}
+
+function RootWidgetView({ vm, logoImage }: { vm: BillViewModel; logoImage?: UIImage | null }) {
+  return Widget.family === 'systemSmall'
+    ? <SmallWidgetView vm={vm} logoImage={logoImage} />
+    : <WidgetView vm={vm} logoImage={logoImage} />
+}
+
 function ErrorView({ message }: { message: string }) {
   return (
     <VStack spacing={6} padding={{ horizontal: 20, vertical: 16 }} widgetBackground={bg}>
@@ -820,7 +891,7 @@ async function main() {
 
   // 参数为 demo：不联网，仅用于预览布局
   if (param === 'demo') {
-    Widget.present(<WidgetView vm={demoViewModel()} logoImage={logoImage} />, {
+    Widget.present(<RootWidgetView vm={demoViewModel()} logoImage={logoImage} />, {
       policy: 'after',
       date: new Date(Date.now() + settings.interval * 60 * 1000),
     })
@@ -829,13 +900,12 @@ async function main() {
 
   // 参数决定本小组件显示哪一户：优先匹配自定义户名，其次数字 1/2/3，否则用设置里的当前账户
   const accountIndex = resolveAccountIndex(Widget.parameter ?? '', settings)
-
   try {
     const raw = await getBillData(settings, accountIndex)
     // 套用自定义户名（未设置则沿用数据里的实际户名）
     const customName = settings.accNames[accountIndex]?.trim()
     const vm = customName ? { ...raw, consName: customName } : raw
-    Widget.present(<WidgetView vm={vm} logoImage={logoImage} />, {
+    Widget.present(<RootWidgetView vm={vm} logoImage={logoImage} />, {
       policy: 'after',
       date: new Date(Date.now() + settings.interval * 60 * 1000),
     })
