@@ -783,6 +783,12 @@ function SmallBottomSlot({ slot, vm, logoImage }: { slot: SmallSlotKey; vm: Bill
   return <SmallSlotSurface slot={slot} vm={vm} logoImage={logoImage} />
 }
 
+/** 数据接口时间只显示时分；无有效时间时不占用右上角。 */
+function updateTimeText(update: string): string {
+  const match = update.match(/(?:T|\s)(\d{1,2}):(\d{2})/)
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : ''
+}
+
 /** 小号固定为可配置样式三：标题、全宽主模块、底部等宽双栏。 */
 function SmallWidgetView({ vm, logoImage }: { vm: BillViewModel; logoImage?: UIImage | null }) {
   const { top, upper, lower, bottom } = settings.smallSlots
@@ -790,6 +796,11 @@ function SmallWidgetView({ vm, logoImage }: { vm: BillViewModel; logoImage?: UII
     <VStack alignment="leading" spacing={8} padding={{ horizontal: 16, vertical: 13 }}>
       <HStack alignment="center" spacing={6}>
         <VStack alignment="leading"><SmallSlot slot={top} vm={vm} logoImage={logoImage} /></VStack>
+        <Spacer />
+        {updateTimeText(vm.update) ? <HStack alignment="center" spacing={3}>
+          {vm.fromCache ? <Image systemName="arrow.triangle.2.circlepath" resizable scaleToFit frame={{ width: 7, height: 7 }} foregroundStyle={labelColor} /> : null}
+          <Text font={11} fontWeight="medium" fontDesign="rounded" foregroundStyle={labelColor}>{updateTimeText(vm.update)}</Text>
+        </HStack> : null}
       </HStack>
       <SmallSlotSurface slot={upper} vm={vm} logoImage={logoImage} />
       <HStack alignment="center">
